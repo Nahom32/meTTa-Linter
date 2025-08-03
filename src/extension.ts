@@ -1,10 +1,13 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import { exec } from 'child_process';
+import * as path from 'path';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+	const diagnosticCollection = vscode.languages.createDiagnosticCollection('metta');
 
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
@@ -13,11 +16,43 @@ export function activate(context: vscode.ExtensionContext) {
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('metta-linter.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from meTTa-Linter!');
-	});
+	const disposable =  vscode.workspace.onDidSaveTextDocument(doc => {
+            if (doc.languageId !== 'metta') return;
+
+            const filePath = doc.fileName;
+            const pythonLinterPath = path.join(__dirname, 'linter.py');
+
+            exec(`python3 ${pythonLinterPath} "${filePath}"`, (err, stdout, stderr) => {
+                diagnosticCollection.clear();
+
+                if (stderr) {
+                    vscode.window.showErrorMessage(stderr);
+                    return;
+                }
+
+                let diagnostics: vscode.Diagnostic[] = [];
+
+                try {
+                    const issues = JSON.parse(stdout);
+                    for (const issue of issues) {
+                        const range = new vscode.Range(
+                            new vscode.Position(issue.line - 1, issue.column || 0),
+                            new vscode.Position(issue.line - 1, (issue.column || 0) + 1)
+                        );
+                        const diagnostic = new vscode.Diagnostic(
+                            range,
+                            issue.message,
+                            vscode.DiagnosticSeverity.Warning
+                        );
+                        diagnostics.push(diagnostic);
+                    }
+                } catch (parseError) {
+                    vscode.window.showErrorMessage('Failed to parse linter output.');
+                }
+
+                diagnosticCollection.set(doc.uri, diagnostics);
+            });
+        })
 
 	context.subscriptions.push(disposable);
 }
