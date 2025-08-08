@@ -13,12 +13,12 @@
   "main": "./dist/extension.js",
   "contributes": {
     "languages": [
-    {
-      "id": "metta",
-      "aliases": ["meTTa", "metta"],
-      "extensions": [".metta"],
-      "configuration": "./language-configuration.json"
-    }
+        {
+          "id": "metta",
+          "aliases": ["meTTa", "metta"],
+          "extensions": [".metta"]
+          
+        }
   ]
   },
   "scripts": {

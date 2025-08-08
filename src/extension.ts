@@ -6,7 +6,7 @@ import * as path from 'path';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
 	const diagnosticCollection = vscode.languages.createDiagnosticCollection('metta');
 
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
@@ -17,10 +17,13 @@ export function activate(context: vscode.ExtensionContext) {
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
 	const disposable =  vscode.workspace.onDidSaveTextDocument(doc => {
-            if (doc.languageId !== 'metta') return;
+            //if (doc.languageId !== 'metta') {return;}
 
+            console.log("Fired!");
             const filePath = doc.fileName;
-            const pythonLinterPath = path.join(__dirname, 'linter.py');
+            const pythonLinterPath = path.join(context.extensionPath, 'linter.py');
+            console.log(pythonLinterPath);
+
 
             exec(`python3 ${pythonLinterPath} "${filePath}"`, (err, stdout, stderr) => {
                 diagnosticCollection.clear();
@@ -33,7 +36,7 @@ export function activate(context: vscode.ExtensionContext) {
                 let diagnostics: vscode.Diagnostic[] = [];
 
                 try {
-                    const issues = JSON.parse(stdout);
+                    const issues =  JSON.parse(stdout);
                     for (const issue of issues) {
                         const range = new vscode.Range(
                             new vscode.Position(issue.line - 1, issue.column || 0),
@@ -44,7 +47,7 @@ export function activate(context: vscode.ExtensionContext) {
                             issue.message,
                             vscode.DiagnosticSeverity.Warning
                         );
-                        diagnostics.push(diagnostic);
+                        diagnostics = [...diagnostics,diagnostic];
                     }
                 } catch (parseError) {
                     vscode.window.showErrorMessage('Failed to parse linter output.');
@@ -52,7 +55,7 @@ export function activate(context: vscode.ExtensionContext) {
 
                 diagnosticCollection.set(doc.uri, diagnostics);
             });
-        })
+        });
 
 	context.subscriptions.push(disposable);
 }
