@@ -34,8 +34,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
     console.log("Running MeTTa linter on:", filePath);
     console.log("Linter path:", pythonLinterPath);
+    const pythonCommand = process.platform === "win32" ? "python" : "python3";
+    const fallbackCommand = process.platform === "win32" ? "python3" : "python";
 
-    const command = `python3 "${pythonLinterPath}" "${filePath}"`;
+    const command = `${pythonCommand} "${pythonLinterPath}" "${filePath}"`;
+
+    
     const execOptions = {
       timeout: 30000, // 30 second timeout
       cwd: context.extensionPath,
