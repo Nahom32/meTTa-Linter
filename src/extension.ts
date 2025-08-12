@@ -138,7 +138,7 @@ export async function activate(context: vscode.ExtensionContext) {
       vscode.window.showErrorMessage(`Failed to scan for .metta files: ${error}`);
     }
   }
-  lintAllMettaFiles();
+    await lintAllMettaFiles();
   const disposable = vscode.workspace.onDidSaveTextDocument((doc) => {
     if (doc.languageId !== "metta" && !doc.fileName.endsWith(".metta")) {
       return;
@@ -156,18 +156,37 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     if (activeEditor.document.languageId !== "metta" && !activeEditor.document.fileName.endsWith(".metta")) {
-      vscode.window.showWarningMessage("Current file is not a MeTTa file")
+      vscode.window.showWarningMessage("Current file is not a MeTTa file");
       return;
     }
 
     runLinter(activeEditor.document);
   });
+  const lintAllCommand = vscode.commands.registerCommand("metta-linter.lintAll", async () => {
+        vscode.window.showInformationMessage("Linting all .metta files in workspace...");
+        await lintAllMettaFiles();
+        vscode.window.showInformationMessage("Finished linting all .metta files");
+  });
+  const openDisposable = vscode.workspace.onDidOpenTextDocument((doc) => {
+    if (doc.languageId !== "metta" && !doc.fileName.endsWith(".metta")) {
+      return;
+    }
 
+    console.log("MeTTa file opened, running linter!");
+    runLinter(doc);
+  });
   const closeDisposable = vscode.workspace.onDidCloseTextDocument((doc) => {
     diagnosticCollection.delete(doc.uri);
-  })
+  });
 
-  context.subscriptions.push(disposable, lintCommand, closeDisposable, diagnosticCollection)
+  context.subscriptions.push(
+    disposable,
+    lintCommand,
+    lintAllCommand,
+    openDisposable,
+    closeDisposable,
+    diagnosticCollection,
+  );
 }
 
 // This method is called when your extension is deactivated
