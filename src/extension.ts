@@ -28,7 +28,7 @@ export async function activate(context: vscode.ExtensionContext) {
     const pythonLinterPath = path.join(context.extensionPath, "linter.py");
 
     if (!checkLinterExists(pythonLinterPath)) {
-      vscode.window.showErrorMessage(`MeTTa linter script not found at: ${pythonLinterPath}`)
+      vscode.window.showErrorMessage(`MeTTa linter script not found at: ${pythonLinterPath}`);
       return;
     }
 
@@ -69,13 +69,13 @@ export async function activate(context: vscode.ExtensionContext) {
         const issues = JSON.parse(stdout);
 
         if (!Array.isArray(issues)) {
-          throw new Error("Linter output is not an array")
+          throw new Error("Linter output is not an array");
         }
 
         for (const issue of issues) {
           if (!issue.line || !issue.message) {
-            console.warn("Invalid issue format:", issue)
-            continue
+            console.warn("Invalid issue format:", issue);
+            continue;
           }
 
           const line = Math.max(0, issue.line - 1);
@@ -109,10 +109,36 @@ export async function activate(context: vscode.ExtensionContext) {
         return;
       }
 
-      diagnosticCollection.set(document.uri, diagnostics)
-    })
+      diagnosticCollection.set(document.uri, diagnostics);
+    });
   }
+  async function lintAllMettaFiles() {
+    if (!vscode.workspace.workspaceFolders) {
+      console.log("No workspace folders found");
+      return;
+    }
 
+    console.log("Scanning for existing .metta files...");
+
+    try {
+      const mettaFiles = await vscode.workspace.findFiles("**/*.metta", "**/node_modules/**");
+      console.log(`Found ${mettaFiles.length} .metta files`);
+
+      for (const fileUri of mettaFiles) {
+        try {
+          const document = await vscode.workspace.openTextDocument(fileUri);
+          console.log(`Linting existing file: ${document.fileName}`);
+          runLinter(document);
+        } catch (error) {
+          console.error(`Failed to open document ${fileUri.fsPath}:`, error);
+        }
+      }
+    } catch (error) {
+      console.error("Error finding .metta files:", error);
+      vscode.window.showErrorMessage(`Failed to scan for .metta files: ${error}`);
+    }
+  }
+  lintAllMettaFiles();
   const disposable = vscode.workspace.onDidSaveTextDocument((doc) => {
     if (doc.languageId !== "metta" && !doc.fileName.endsWith(".metta")) {
       return;
@@ -146,5 +172,5 @@ export async function activate(context: vscode.ExtensionContext) {
 
 // This method is called when your extension is deactivated
 export function deactivate() {
-  console.log("MeTTa linter extension deactivated")
+  console.log("MeTTa linter extension deactivated");
 }
