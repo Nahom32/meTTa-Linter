@@ -6,30 +6,31 @@ def extract_vars_from_expr(expr):
     """Extract all $variables used in an expression."""
     return re.findall(r'\$[a-zA-Z_][a-zA-Z0-9_]*', expr)
 
+
 def extract_definitions_from_expr(expr):
-    """Return set of variables defined in the expression (let, let*, =)."""
     defined = set()
     expr = expr.strip()
-
-    # Handle (= (fn $x $y) body...)
-    if expr.startswith("(="):
+    if expr.startswith("(match ") or expr.startswith("( match "):
+        # Match expressions can define variables
+        matches = re.findall(r'\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s', expr)
+        defined.update(matches)
+    elif expr.startswith("(let "):
+        # Handle (let $x expr body)
+        match = re.match(r'\(let\s+(\$[a-zA-Z_][a-zA-Z0-9_]*)\s', expr)
+        if match:
+            defined.add(match.group(1))
+    elif expr.startswith("(let*"):
+        # Handle (let* (( $x expr ) ($y expr )) body...)
+        matches = re.findall(r'\(\s*(\$[a-zA-Z_][a-zA-Z0-9_]*)\s', expr)
+        defined.update(matches)
+    elif expr.startswith("(="):
+        # Handle (= (fn $x $y) body...)
         match = re.match(r'\(=\s*\((.*?)\)', expr, re.DOTALL)
         if match:
             args = match.group(1)
             defined.update(extract_vars_from_expr(args))
-
-    # Handle (let $x expr body)
-    elif expr.startswith("(let "):
-        match = re.match(r'\(let\s+(\$[a-zA-Z_][a-zA-Z0-9_]*)\s', expr)
-        if match:
-            defined.add(match.group(1))
-
-    # Handle (let* (( $x expr ) ($y expr )) body...)
-    elif expr.startswith("(let*"):
-        matches = re.findall(r'\(\s*(\$[a-zA-Z_][a-zA-Z0-9_]*)\s', expr)
-        defined.update(matches)
-
     return defined
+
 
 def is_complete_expr(expr):
     """Check if parentheses are balanced in the expression."""
@@ -52,7 +53,7 @@ def lint_metta_code(code):
 
     for lineno, line in enumerate(lines):
         stripped = line.strip()
-        if not stripped or stripped.startswith(";"):
+        if not stripped:
             continue
 
         if not expr:
